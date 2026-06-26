@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, type WheelEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Download, ExternalLink, X } from 'lucide-react';
 import { usePhotoById } from '../hooks/usePhotoById';
@@ -27,19 +27,72 @@ export function PhotoModal() {
   const state = location.state as ModalState | null;
   const background = state?.background;
 
-  const { surrounding } = usePhotosStore();
+  const { surrounding, photos } = usePhotosStore();
   const { photo } = usePhotoById(id, state?.photo ?? null);
 
   const close = useCallback(() => navigate(-1), [navigate]);
 
-  // Close on Escape.
+  // Step `delta` photos through the loaded list (clamped). Returns whether it
+  // actually moved, so the wheel accumulator can stop building at the ends.
+  const go = useCallback(
+    (delta: number): boolean => {
+      if (!photo || photos.length === 0) return false;
+      const idx = photos.findIndex((p) => p.id === photo.id);
+      if (idx === -1) return false;
+      const targetIdx = Math.min(photos.length - 1, Math.max(0, idx + delta));
+      if (targetIdx === idx) return false;
+      const target = photos[targetIdx];
+      navigate(`/photo/${target.id}`, {
+        replace: true,
+        state: { background, photo: target },
+      });
+      return true;
+    },
+    [photo, photos, navigate, background]
+  );
+
+  // Keyboard: Esc closes; arrows step prev/next (←/↑ previous, →/↓ next).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        go(-1);
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        go(1);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [close, go]);
+
+  // Scroll over the image steps prev/next, proportional to scroll distance —
+  // a nudge advances one photo, a fast flick flips through several (Midjourney
+  // style). PX_PER_STEP controls sensitivity; smaller = faster.
+  const scrollAccum = useRef(0);
+  const handleWheel = useCallback(
+    (e: WheelEvent<HTMLDivElement>) => {
+      // Normalize line/page scroll modes to pixels.
+      const unit =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+      scrollAccum.current += e.deltaY * unit;
+
+      const PX_PER_STEP = 40;
+      const steps = (scrollAccum.current / PX_PER_STEP) | 0; // truncate toward 0
+      if (steps !== 0) {
+        scrollAccum.current -= steps * PX_PER_STEP;
+        if (!go(steps)) scrollAccum.current = 0; // hit an end — don't pile up
+      }
+    },
+    [go]
+  );
+
+  // Keep the active thumbnail in view in the rail as we navigate.
+  const activeThumbRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeThumbRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [photo?.id]);
 
   // Lock background scroll while open.
   useEffect(() => {
@@ -79,9 +132,10 @@ export function PhotoModal() {
         aria-modal="true"
         className="relative flex h-full w-full flex-col md:flex-row"
       >
-        {/* Left: large image over the blur. */}
+        {/* Left: large image over the blur. Scroll here to step prev/next. */}
         <div
           onClick={close}
+          onWheel={handleWheel}
           className="flex flex-1 items-center justify-center p-4 md:p-10"
         >
           <img
@@ -163,6 +217,7 @@ export function PhotoModal() {
               return (
                 <button
                   key={thumb.id}
+                  ref={active ? activeThumbRef : undefined}
                   type="button"
                   onClick={() => selectThumb(thumb)}
                   aria-current={active}
