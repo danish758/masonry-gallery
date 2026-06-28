@@ -4,7 +4,9 @@ import { useColumnCount, useElementWidth } from '../hooks/useLayout';
 import type { Photo } from '../types';
 
 const GAP = 12;
-const OVERSCAN = 600; // px rendered above/below the viewport
+// Minimum px rendered above/below the viewport. The effective overscan is at
+// least one screen height so images preload before they scroll into view.
+const OVERSCAN = 800;
 
 interface MasonryGridProps {
   photos: Photo[];
@@ -106,8 +108,9 @@ export function MasonryGrid({
 
   // The visible slice: cards intersecting [viewport ± overscan] in grid space.
   const visible = useMemo(() => {
-    const top = viewport.top - scrollMargin - OVERSCAN;
-    const bottom = viewport.top - scrollMargin + viewport.height + OVERSCAN;
+    const overscan = Math.max(OVERSCAN, viewport.height);
+    const top = viewport.top - scrollMargin - overscan;
+    const bottom = viewport.top - scrollMargin + viewport.height + overscan;
     return placements.filter((p) => p.y < bottom && p.y + p.height > top);
   }, [placements, viewport, scrollMargin]);
 

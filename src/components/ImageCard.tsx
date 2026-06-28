@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { sizedUrl } from '../lib/pixabay';
 import type { Photo } from '../types';
 
@@ -27,6 +27,13 @@ function isModifiedClick(e: MouseEvent): boolean {
  */
 export function ImageCard({ photo, width, height, onClick }: ImageCardProps) {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // When a virtualized card re-mounts, the image may already be cached — show it
+  // immediately instead of flashing the skeleton.
+  useEffect(() => {
+    if (imgRef.current?.complete) setLoaded(true);
+  }, []);
 
   return (
     <a
@@ -50,6 +57,7 @@ export function ImageCard({ photo, width, height, onClick }: ImageCardProps) {
       )}
 
       <img
+        ref={imgRef}
         src={sizedUrl(photo, width, height)}
         alt={`Photo by ${photo.author}`}
         width={width}
