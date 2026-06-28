@@ -114,14 +114,13 @@ export async function fetchRandom(count: number): Promise<Photo[]> {
 }
 
 /**
- * Pick the smallest Pixabay size bucket that covers the requested box (×DPR).
- * The preview keeps the original aspect ratio, so cards/thumbnails fill their
- * box with `object-cover` and no distortion.
+ * Pick the smallest Pixabay size bucket that covers the requested box (×DPR),
+ * capped at the 640 webformat ceiling. Cards/thumbnails never need more than
+ * 640px — going larger (the 1280px image) just makes the grid slow. The big
+ * modal/detail view uses `photo.largeUrl` directly instead.
  */
 export function sizedUrl(photo: Photo, width: number, height: number): string {
   const target = Math.ceil(Math.max(width, height) * DPR);
-  // Beyond the 640 webformat ceiling, fall back to the larger image (≤1280px).
-  if (target > 640) return photo.largeUrl;
   const bucket = BUCKETS.find((b) => b >= target) ?? 640;
   return photo.previewUrl.replace(/_\d+(\.[a-z]+)$/i, `_${bucket}$1`);
 }

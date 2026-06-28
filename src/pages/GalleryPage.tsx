@@ -5,7 +5,7 @@ import { MasonryGrid } from '../components/MasonryGrid';
 import { Header } from '../components/Header';
 import { ApiKeyBanner } from '../components/ApiKeyBanner';
 import { Notice } from '../components/Notice';
-import { Spinner } from '../components/Spinner';
+import { SkeletonGrid } from '../components/SkeletonGrid';
 import { useInfinitePhotos } from '../hooks/useInfinitePhotos';
 import { usePhotosStore } from '../lib/photosStore';
 import { hasPixabayKey } from '../lib/pixabay';
@@ -53,19 +53,24 @@ export function GalleryPage() {
         {!hasPixabayKey && <ApiKeyBanner />}
         {error && hasPixabayKey && <Notice className="mb-4 p-3">{error}</Notice>}
 
-        <MasonryGrid
-          photos={photos}
-          onCardClick={openPhoto}
-          onRenderedCountChange={setRenderedCount}
-        />
+        {photos.length === 0 ? (
+          // Initial load — skeleton placeholders instead of a spinner.
+          hasPixabayKey && <SkeletonGrid count={12} />
+        ) : (
+          <MasonryGrid
+            photos={photos}
+            onCardClick={openPhoto}
+            onRenderedCountChange={setRenderedCount}
+          />
+        )}
 
-        {/* Sentinel + loading state. */}
-        <div className="flex flex-col items-center justify-center py-8">
-          {isFetching && <Spinner />}
+        {/* Sentinel + infinite-scroll loading state. */}
+        <div className="py-6">
+          {isFetching && photos.length > 0 && <SkeletonGrid count={6} />}
           {!hasMore && photos.length > 0 && (
-            <span className="text-sm text-text-secondary">
+            <p className="py-2 text-center text-sm text-text-secondary">
               You've reached the end — {photos.length} photos.
-            </span>
+            </p>
           )}
           <div ref={ref} style={{ height: 1 }} />
         </div>
