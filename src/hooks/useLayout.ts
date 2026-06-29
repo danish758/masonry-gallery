@@ -1,9 +1,10 @@
 import { useEffect, useState, type RefObject } from 'react';
 
-/** Column count matching the masonry breakpoints: 2 / 3 / 4. */
+/** Column count matching the masonry breakpoints: 2 / 3 / 4 / 5. */
 export function useColumnCount(): number {
   const compute = () => {
     if (typeof window === 'undefined') return 2;
+    if (window.innerWidth >= 1400) return 5;
     if (window.innerWidth >= 1280) return 4;
     if (window.innerWidth >= 768) return 3;
     return 2;

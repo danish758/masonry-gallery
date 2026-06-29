@@ -36,6 +36,11 @@ body {
     columns: 4;
   }
 }
+@media (min-width: 1400px) {
+  .masonry-grid {
+    columns: 5;
+  }
+}
 .masonry-grid > * {
   break-inside: avoid;
   margin-bottom: 12px;
